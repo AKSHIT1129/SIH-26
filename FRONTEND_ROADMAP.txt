@@ -1,0 +1,272 @@
+================================================================================
+ISRO FSOC VIRTUAL CAMERA TRACKING SYSTEM (PS ID: 26169)
+FRONTEND ARCHITECTURE, COMPONENT SPECIFICATIONS & DEVELOPER ROADMAP
+================================================================================
+
+1. EXECUTIVE OVERVIEW
+--------------------------------------------------------------------------------
+The frontend is an aerospace-grade Mission Control and Digital Twin Telemetry
+Console for the coarse optical alignment of mobile Free Space Optical
+Communication (FSOC) terminals (UAVs, high-altitude platforms, LEO satellites).
+
+It connects via full-duplex WebSocket at 60 FPS (16.6ms cycle) to receive 3D
+kinematics, camera projections, YOLOv8 AI detection boxes, 6-DOF Extended Kalman
+Filter (EKF) states, dual-axis PID gimbal actuation, and 1550nm optical link
+budget metrics.
+
+Target Alignment Benchmark: Pointing Error <= 8.72 mrad (0.50 degrees).
+
+
+2. SYSTEM UI LAYOUT & VISUAL WIREFRAME
+--------------------------------------------------------------------------------
++------------------------------------------------------------------------------+
+|                          1. MISSION HEADER BAR                               |
+| [ISRO / PS 26169]  Sim: 01:24.50  FPS: 60.0  Latency: 4.2ms  State: [LOCKED] |
++------------------------------------------------------------------------------+
+|                    2. HERO POINTING KPI & 5-STEP PIPELINE                    |
+| Pointing Error: 2.84 mrad (0.163 deg) | Limit: 8.72 mrad | Margin: +5.88 mrad |
+| [1. Flight] -> [2. AI Detect] -> [3. EKF Predict] -> [4. Slew] -> [5. Laser] |
++---------------------------------------+--------------------------------------+
+| SECTION I: 3D SPATIAL DIGITAL TWIN    | SECTION II: OPTICAL CAMERA & AI HUD  |
+| - Three.js WebGL 3D World             | - 1st-Person Telescope Boresight View|
+| - Ground Station & UAV 3D Model       | - 8.72 mrad Coarse Tolerance Reticle |
+| - Dynamic 1550nm Laser LOS Beam       | - YOLOv8 AI Detection Box (Conf %)   |
+| - Volumetric Cloud Occlusion Mesh     | - EKF Centroid & Covariance Ellipse  |
+| - Satellite Radar Minimap Inset       | - 5-Step Trajectory Prediction Trail |
++---------------------------------------+--------------------------------------+
+| SECTION III: LINK & ACTUATION         | SECTION IV: TRACKING CONDITIONS      |
+| - Gimbal Azimuth & Slew (deg/s)       | - Beacon Detection Confidence (%)    |
+| - Gimbal Elevation & Slew (deg/s)     | - EKF Prediction Precision (%)       |
+| - RSSI (dBm & micro-Watts)            | - Target Trajectory Mode & Velocity  |
+| - Bit Error Rate (BER) & SNR (dB)     | - Weather / Atmospheric Loss (dB/km) |
++---------------------------------------+--------------------------------------+
+| SECTION V: REAL-TIME ERROR GRAPH      | SECTION VI: MISSION EVENT TIMELINE   |
+| - Scrolling Pointing Error Plot (mrad)| - Chronological event feed:          |
+| - 8.72 mrad Redline Threshold Limit   |   Acquisitions, occlusions, link drop|
+| - Live Current, RMS, Peak Readouts    | - Severity badges: INFO/WARN/ALERT   |
++---------------------------------------+--------------------------------------+
+| MODALS: [System Configuration Drawer] | [ISRO Automated Benchmark Report]    |
++------------------------------------------------------------------------------+
+
+
+3. THE 8 CORE FRONTEND SUBMODULES
+--------------------------------------------------------------------------------
+
+[MODULE 1] NetworkClient (WebSocket & REST API)
+- WebSocket Endpoint: ws://localhost:8000/ws/telemetry (60 Hz telemetry streaming)
+- Auto-reconnect with exponential backoff.
+- Real-time round-trip latency and FPS calculator.
+- REST API Calls:
+  * POST /api/config          : Update trajectory, weather, laser power, PID gains
+  * POST /api/scenario/occlude: Trigger synthetic cloud occlusion
+  * POST /api/scenario/wind   : Inject 4.5 m/s wind disturbance
+  * POST /api/scenario/reset  : Reset EKF and simulation clock
+  * GET  /api/benchmark/report: Fetch automated performance summary JSON
+  * GET  /api/benchmark/csv   : Download 100-frame test telemetry CSV
+
+[MODULE 2] DigitalTwin3D (Three.js 3D Spatial World - Section I)
+- Three.js WebGL scene with Perspective Camera (FOV 45 deg) & OrbitControls.
+- Environment: Sriharikota Launch Range (SDSC SHAR) satellite ground texture,
+  concrete launch pad, runway 09/27 markings, and coordinate grid.
+- Ground Terminal Model: Heavy pedestal, dual-axis yoke, optical barrel.
+- Target UAV Model: Quad-rotor airframe with animated rotating propeller blades.
+- 1550nm Laser Beam: Dynamic cylinder connecting ground station aperture to UAV.
+  Color reactive: Emerald Green (Error <= 8.72 mrad) / Crimson Red (> 8.72 mrad).
+- Volumetric Cloud Mesh: Appears across line-of-sight during occlusion tests.
+- Camera Modes:
+  * Free Cam    : 360-degree orbital user inspection.
+  * Follow Cam  : Dynamic chase camera tracking UAV coordinates.
+  * Terminal Cam: Ground station eye-level looking up at the target.
+
+[MODULE 3] VirtualCameraView (Optical Telescope Viewport - Section II)
+- Dedicated 1st-person Three.js viewport looking from the ground station barrel.
+- Synchronized with gimbal pan/tilt orientation:
+  * Pitch = Gimbal Elevation
+  * Yaw   = -Gimbal Azimuth
+- Matches optical sensor Field of View (45.0 deg default).
+
+[MODULE 4] EOIRTrackingHUD (2D Optical Tracking Canvas Overlay)
+- Layered directly over the Virtual Camera viewport.
+- Center Reticle: Ground station boresight origin crosshair (u0, v0).
+- 8.72 mrad (0.50 deg) Boundary Box: Visual tolerance gate for coarse lock.
+- YOLOv8 AI Detection Box: Bounding box around target beacon with confidence %.
+- 6-DOF EKF Tracking Layer:
+  * Estimated centroid marker (u_hat, v_hat).
+  * 3-Sigma Uncertainty Covariance Ellipse (expands during cloud occlusions).
+  * 5-Step Future Trajectory Horizon Prediction Trail.
+- Live Status HUD: Azimuth/Elevation angular offsets and slant range (m).
+
+[MODULE 5] TacticalMinimap (2D Satellite Radar Inset)
+- 2D Canvas radar showing top-down coordinates:
+  * Ground station at origin (0, 0).
+  * Target location (x, y) with heading vector.
+  * Range distance rings (100m, 250m, 500m).
+  * GPS Latitude/Longitude readouts (13 deg 43' N, 80 deg 13' E).
+
+[MODULE 6] TelemetryConsole (DOM Metrics & 5-Step Pipeline Strip)
+- Hero Readout: Live Pointing Error in mrad and degrees (color-coded).
+- 5-Step Pipeline Flow:
+  1. Target Flight -> 2. AI Detection -> 3. EKF Prediction ->
+  4. Gimbal Slew -> 5. Laser Carrier Lock.
+- Actuation: Azimuth/Elevation angles and motor slew rates (bounded to <= 45 deg/s).
+- Optical Link: RSSI (dBm & micro-Watts), SNR (dB), Bit Error Rate (BER),
+  10 Gbps Lock Status.
+- Channel: Trajectory mode, target speed (m/s), weather loss (dB/km).
+
+[MODULE 7] ErrorChart (Real-Time Pointing Error Graph - Section V)
+- Real-time scrolling line graph using Chart.js.
+- Buffers the last 100 telemetry frames (16.6ms per sample).
+- Solid Redline at 8.72 mrad limit.
+- Live Statistical Badges: Current Error, RMS Error, Peak Error.
+
+[MODULE 8] EngineeringEventFeed (Timeline Logger - Section VI)
+- Auto-scrolling chronological event log.
+- Timestamped messages for key mission milestones:
+  * Target acquisition / beacon detection.
+  * Gimbal slew acceleration / rate saturation.
+  * Cloud occlusion triggered (EKF coasting active).
+  * Lock re-acquired post-occlusion.
+
+
+4. WEBSOCKET TELEMETRY DATA CONTRACT (JSON SPECIFICATION)
+--------------------------------------------------------------------------------
+Every 16.6 ms (60 FPS), the server broadcasts this exact JSON payload:
+
+{
+  "timestamp": 12.45,
+  "target": {
+    "time": 12.45,
+    "position": [180.4, 95.2, 120.0],
+    "velocity": [12.5, -4.2, 0.5],
+    "speed": 15.0,
+    "distance": 225.6,
+    "azimuth_deg": 142.5,
+    "elevation_deg": 28.4,
+    "is_occluded": false
+  },
+  "camera": {
+    "width": 1920,
+    "height": 1080,
+    "fov_h_deg": 45.0,
+    "fov_v_deg": 25.3,
+    "in_fov": true,
+    "u": 984.2,
+    "v": 528.6,
+    "apparent_radius_px": 18.4,
+    "range_m": 225.6
+  },
+  "ai": {
+    "detected": true,
+    "confidence": 0.984,
+    "bbox": [965.8, 510.2, 36.8, 36.8],
+    "centroid": [984.2, 528.6],
+    "inference_time_ms": 3.8
+  },
+  "kalman": {
+    "tracking_status": "COARSE_LOCKED",
+    "estimated_u": 982.5,
+    "estimated_v": 530.1,
+    "estimated_vu": 12.4,
+    "estimated_vv": -4.2,
+    "sigma_pos": 1.40,
+    "prediction_horizon": [
+      [994.9, 525.9],
+      [1007.3, 521.7],
+      [1019.7, 517.5],
+      [1032.1, 513.3],
+      [1044.5, 509.1]
+    ]
+  },
+  "gimbal": {
+    "current_azimuth_deg": 142.2,
+    "current_elevation_deg": 28.3,
+    "slew_rate_az": 12.4,
+    "slew_rate_el": 8.1,
+    "error_az_deg": 0.124,
+    "error_el_deg": -0.082,
+    "total_error_deg": 0.149,
+    "total_error_mrad": 2.84,
+    "is_locked": true
+  },
+  "optics": {
+    "rssi_dbm": -18.4,
+    "received_power_uw": 14.45,
+    "snr_db": 28.5,
+    "ber": 1.20e-9,
+    "link_margin_db": 12.4,
+    "channel_loss_db": 0.05,
+    "is_locked": true,
+    "link_status": "LOCKED_OPTIMAL"
+  },
+  "performance": {
+    "latency_ms": 4.2,
+    "locked_frames": 745,
+    "total_frames": 750,
+    "initial_acquisition_sec": 0.42
+  }
+}
+
+
+5. DESIGN SYSTEM & COLOR PALETTE
+--------------------------------------------------------------------------------
+Theme: Tactical Aerospace Dark Deck
+- Background Canvas       : #060709 / #0D1117 (Deep Obsidian)
+- Card & Panel Surfaces   : #131822 (Border: rgba(255, 255, 255, 0.08))
+- ISRO Gold / Accent      : #EAB308 (Amber Primary)
+- Locked Status (Healthy) : #10B981 (Emerald Green)
+- Alert / Warning         : #F59E0B (Amber Alert)
+- Misalignment / Link Drop: #EF4444 (Crimson Red)
+- Optical Data Cyan       : #38BDF8 (Sky Telecom Blue)
+- Typography:
+  * Numbers & Readouts   : "IBM Plex Mono", "Roboto Mono"
+  * UI Labels & Titles    : "IBM Plex Sans", "Inter", "Cinzel"
+
+
+6. STEP-BY-STEP DEVELOPMENT ROADMAP
+--------------------------------------------------------------------------------
+[PHASE 1: Project Setup & WebSocket Pipeline]
+- Scaffold project structure (React/Next.js/HTML5).
+- Implement WebSocket client connected to ws://localhost:8000/ws/telemetry.
+- Build packet deserialization layer and verify sustained 60 FPS delivery.
+
+[PHASE 2: Navigation & Hero KPI Deck]
+- Build Top Header (Sim Time, FPS counter, Latency ms, Status badge).
+- Build Hero Pointing Error display in mrad and degrees.
+- Build 5-step dynamic pipeline bar with step illumination.
+
+[PHASE 3: Three.js 3D Spatial Digital Twin]
+- Initialize Three.js scene, lighting, fog, and Sriharikota terrain texture.
+- Render ground station pedestal, gimbal yoke, and optical barrel.
+- Render UAV 3D model with animated spinning propellers.
+- Add dynamic 1550nm laser beam line (green when locked, red when off).
+- Add orbit/follow/terminal camera modes.
+
+[PHASE 4: 1st-Person Telescope View & AI HUD Canvas]
+- Create 2nd Three.js camera tied to gimbal pan/tilt angles.
+- Create 2D HUD Canvas overlay with boresight crosshair.
+- Draw 8.72 mrad coarse tolerance box.
+- Draw YOLOv8 AI bounding box with confidence score.
+- Draw 6-DOF EKF centroid, 3-sigma uncertainty ellipse, and 5-step horizon.
+
+[PHASE 5: Telemetry Panels & Live Error Graph]
+- Build Link & Actuation panel (Slew rates, RSSI, BER, SNR, 10 Gbps lock).
+- Build Tracking Conditions panel (AI confidence, weather loss, target mode).
+- Integrate Chart.js streaming plot with 8.72 mrad redline limit.
+- Build auto-scrolling Mission Event Timeline Log.
+
+[PHASE 6: Controls & ISRO Benchmark Modal]
+- Add scenario buttons (Occlusion test, Wind disturbance, Simulation reset).
+- Build System Parameters Configuration Drawer (POST /api/config).
+- Build ISRO Automated Benchmark Report Modal (GET /api/benchmark/report)
+  with summary tables and CSV/PDF export.
+
+
+7. CODE REPOSITORY FILE REFERENCES
+--------------------------------------------------------------------------------
+- Full UI Template        : frontend/index.html
+- Design System Styles    : frontend/styles.css
+- Complete Logic & WebGL  : frontend/app.js
+- Markdown Roadmap Doc    : docs/FRONTEND_ARCHITECTURE_AND_ROADMAP.md
+- Backend Telemetry API   : backend/app/main.py
+- GitHub Repository       : https://github.com/AKSHIT1129/SIH-26.git
+================================================================================
