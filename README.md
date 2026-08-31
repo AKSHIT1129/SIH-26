@@ -6,7 +6,7 @@
 
 ---
 
-## 🛰️ 1. Executive Summary
+##  1. Executive Summary
 
 This system implements an end-to-end, closed-loop software solution for the **coarse optical alignment of mobile Free Space Optical Communication (FSOC) terminals** (such as UAVs, high-altitude platforms, and LEO satellite ground passes). 
 
@@ -14,7 +14,7 @@ By integrating a virtual pinhole camera sensor, real-time AI optical beacon dete
 
 ---
 
-## 🏗️ 2. System Architecture & Closed-Loop Pipeline
+##  2. System Architecture & Closed-Loop Pipeline
 
 The pipeline operates as a continuous closed-loop cyber-physical control system:
 
@@ -47,7 +47,7 @@ flowchart TD
 
 ---
 
-## ⚙️ 3. Simulation vs. Real Hardware Mapping
+##  3. Simulation vs. Real Hardware Mapping
 
 To provide transparency into what was developed for simulation versus what directly deploys to physical hardware:
 
@@ -62,7 +62,7 @@ To provide transparency into what was developed for simulation versus what direc
 
 ---
 
-## 📐 4. Technical Trade-offs & Engineering Rationale
+##  4. Technical Trade-offs & Engineering Rationale
 
 1. **Why Extended Kalman Filter (EKF) instead of Particle Filter or Simple Moving Average?**
    * **Computational Cost:** An EKF running a 6-state constant-acceleration kinematic model consumes $< 0.4\text{ ms}$ per step on a single CPU core, easily sustaining the mandatory 60 FPS budget. A Particle Filter with thousands of particles would exceed real-time latency limits on embedded terminals without offering meaningful accuracy gains, since target flight dynamics are locally well-approximated as linear over the 1.0–2.0 second prediction horizon.
@@ -79,7 +79,7 @@ To provide transparency into what was developed for simulation versus what direc
 
 ---
 
-## 🚀 5. Quick Start & Execution
+##  5. Quick Start & Execution
 
 ### Prerequisites
 * Python 3.10 to 3.14
@@ -108,7 +108,7 @@ Open **`http://localhost:8000`** in your browser.
 
 ---
 
-## 🧪 6. Verification & Automated Benchmark Testing
+##  6. Verification & Automated Benchmark Testing
 
 The codebase includes an automated test harness validating both functional pipeline execution and core physical/behavioral dynamics:
 
@@ -132,7 +132,7 @@ python backend/test_backend.py
 
 ---
 
-## ⚠️ 7. Known Limitations & Future Work
+##  7. Known Limitations & Future Work
 
 1. **Coarse-Stage Scope:** This system is engineered specifically for **coarse pointing and acquisition** ($\le 8.72\text{ mrad}$). A production aerospace terminal requires a downstream secondary **Fine Tracking Sensor (FTS)** using a piezo-driven Fast Steering Mirror (FSM) to achieve the microradian-level precision needed for single-mode optical fiber coupling.
 2. **Atmospheric Fog Cut-off:** While the EKF successfully bridges transient cloud occlusions ($\le 2.0\text{ s}$), sustained dense optical fog ($> 20\text{ dB/km}$ attenuation over ranges $> 1.5\text{ km}$) reduces SNR below the detector sensitivity threshold, requiring optical-to-RF hybrid failover.
@@ -140,13 +140,12 @@ python backend/test_backend.py
 
 ---
 
-## 📄 8. Project Documentation & Deliverables
+##  8. Project Documentation & Deliverables
 
-* 📖 **[ISRO User Manual & Operator Guide](file:///c:/SIH26/docs/USER_MANUAL.md)**
-* 📐 **[System Architecture & Mathematical Formulations](file:///c:/SIH26/docs/SYSTEM_ARCHITECTURE.md)**
-* 🎯 **[SIH 2026 Jury Presentation & Defense Guide](file:///c:/SIH26/docs/SIH_2026_JURY_QA_PREPARATION.md)**
-* 📊 **[Slide Deck Presentation Outline](file:///c:/SIH26/docs/SIH_PRESENTATION_OUTLINE.md)**
-* 🎬 **[Demonstration Video Script](file:///c:/SIH26/docs/VIDEO_DEMO_SCRIPT.md)**
-
+*  **[ISRO User Manual & Operator Guide](file:///c:/SIH26/docs/USER_MANUAL.md)**
+*  **[System Architecture & Mathematical Formulations](file:///c:/SIH26/docs/SYSTEM_ARCHITECTURE.md)**
+*  **[SIH 2026 Jury Presentation & Defense Guide](file:///c:/SIH26/docs/SIH_2026_JURY_QA_PREPARATION.md)**
+*  **[Slide Deck Presentation Outline](file:///c:/SIH26/docs/SIH_PRESENTATION_OUTLINE.md)**
+*  **[Demonstration Video Script](file:///c:/SIH26/docs/VIDEO_DEMO_SCRIPT.md)**
 ---
 *Developed for the Smart India Hackathon 2026 | Indian Space Research Organisation (ISRO)*
