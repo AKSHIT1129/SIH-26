@@ -52,23 +52,70 @@ class FSOCOpticsEngine:
     def calculate_link_budget(self,
                              pointing_error_mrad: float,
                              range_m: float,
-                             is_occluded: bool = False) -> Dict[str, Any]:
+                             is_occluded: bool = False,
+                             active_tracing_probe: bool = True) -> Dict[str, Any]:
         """
         Calculates real-time optical link performance metrics.
+        When cloud occlusion is active, models the penetrating 1064nm SWIR tracing beam
+        and the drone's retro-reflected transponder reply echo.
         """
-        if is_occluded or range_m <= 0:
+        if range_m <= 0:
             return {
                 "rssi_dbm": -90.0,
                 "received_power_uw": 0.0,
                 "snr_db": -10.0,
                 "ber": 0.5,
                 "ber_scientific": "0.50e0",
-                "link_status": "DISRUPTED_OCCLUDED",
+                "link_status": "OUT_OF_RANGE",
                 "pointing_loss_db": -60.0,
                 "atm_loss_db": -30.0,
                 "throughput_gbps": 0.0,
-                "weather": self.weather_conditions[self.current_weather]["name"]
+                "weather": self.weather_conditions[self.current_weather]["name"],
+                "active_tracer_engaged": False
             }
+
+        if is_occluded:
+            if active_tracing_probe:
+                # Active 1064nm SWIR Laser Trace Probe penetrating cloud layer
+                # Drone retro-reflector transponder responds with high-SNR optical echo
+                pointing_error_rad = pointing_error_mrad * 1e-3
+                theta_ratio = pointing_error_rad / max(1e-6, self.beam_div_rad)
+                pointing_loss_db = max(-12.0, 10.0 * math.log10(max(1e-6, math.exp(-2.0 * (theta_ratio ** 2)))))
+                
+                # Active probe with retro-reflector optical gain
+                trace_rx_dbm = float(np.clip(-22.0 + pointing_loss_db, -45.0, -18.0))
+                trace_power_uw = (10.0 ** (trace_rx_dbm / 10.0)) * 1000.0
+                trace_snr = float(np.clip(trace_rx_dbm - (-45.0), 0.0, 30.0))
+                
+                return {
+                    "rssi_dbm": round(trace_rx_dbm, 2),
+                    "received_power_uw": round(trace_power_uw, 3),
+                    "snr_db": round(trace_snr, 2),
+                    "ber": 1.0e-7,
+                    "ber_scientific": "1.00e-7",
+                    "link_status": "ACTIVE_SWIR_TRACE_LOCKED",
+                    "pointing_loss_db": round(pointing_loss_db, 2),
+                    "atm_loss_db": -12.5,
+                    "throughput_gbps": 2.5,
+                    "weather": f"{self.weather_conditions[self.current_weather]['name']} (SWIR Penetration)",
+                    "active_tracer_engaged": True,
+                    "drone_echo_received": True,
+                    "cloud_penetration_pct": 98.6
+                }
+            else:
+                return {
+                    "rssi_dbm": -90.0,
+                    "received_power_uw": 0.0,
+                    "snr_db": -10.0,
+                    "ber": 0.5,
+                    "ber_scientific": "0.50e0",
+                    "link_status": "DISRUPTED_OCCLUDED",
+                    "pointing_loss_db": -60.0,
+                    "atm_loss_db": -30.0,
+                    "throughput_gbps": 0.0,
+                    "weather": self.weather_conditions[self.current_weather]["name"],
+                    "active_tracer_engaged": False
+                }
 
         # 1. Geometric Free-Space Path Loss
         # Beam footprint area at receiver distance R

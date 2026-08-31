@@ -189,6 +189,36 @@ def test_behavioral_dynamics():
     assert res_clear["rssi_dbm"] > res_fog["rssi_dbm"], "Dense fog should attenuate significantly more than clear sky!"
     print(f"[PASS] Weather Attenuation: Clear Sky={res_clear['rssi_dbm']:.2f} dBm vs. Dense Fog={res_fog['rssi_dbm']:.2f} dBm")
 
+    print("\n--- [Behavioral Test 5] AI Perception Temporal Beacon Acquisition Delay ---")
+    detector = AITargetDetector(acquisition_duration_s=1.0)
+    mock_cam = {
+        "in_fov": True,
+        "behind_camera": False,
+        "u": 960.0,
+        "v": 540.0,
+        "range_m": 250.0,
+        "apparent_radius_px": 12.0
+    }
+    # Frame 1: Initial candidate detection, acquiring
+    res_f1 = detector.detect(mock_cam, is_occluded=False, dt=0.016)
+    assert res_f1["detected"] is False, "Detector should not instantly confirm lock on frame 1"
+    assert res_f1["detection_state"] == "ACQUIRING"
+    assert res_f1["acquisition_progress_pct"] < 10.0
+    
+    # Progress through 0.5s of integration
+    for _ in range(30):
+        res_mid = detector.detect(mock_cam, is_occluded=False, dt=0.016)
+    assert res_mid["detected"] is False
+    assert res_mid["acquisition_progress_pct"] >= 40.0
+    
+    # Complete remaining frames past 1.0s threshold
+    for _ in range(40):
+        res_final = detector.detect(mock_cam, is_occluded=False, dt=0.016)
+    assert res_final["detected"] is True
+    assert res_final["detection_state"] == "DETECTED"
+    assert res_final["acquisition_progress_pct"] == 100.0
+    print(f"[PASS] Temporal Detection Acquisition Verified: Frame 1 (Acquiring, {res_f1['acquisition_progress_pct']}%) -> 0.5s ({res_mid['acquisition_progress_pct']}%) -> 1.0s (Confirmed Locked {res_final['confidence']*100:.1f}%)")
+
     print("\n=======================================================")
     print(" >>> ALL BEHAVIORAL DYNAMICS TESTS PASSED (100%) <<<")
     print("=======================================================\n")

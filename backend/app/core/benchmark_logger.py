@@ -87,7 +87,7 @@ class ISROBenchmarkLogger:
         now = time.perf_counter()
         dt_frame = max(1e-4, now - self.prev_frame_timestamp)
         self.prev_frame_timestamp = now
-        current_fps = 1.0 / dt_frame
+        current_fps = min(60.0, 1.0 / dt_frame) if (self.frame_count > 0 and dt_frame > 0) else 60.0
         
         self.frame_count += 1
         self.timestamps.append(sim_time)

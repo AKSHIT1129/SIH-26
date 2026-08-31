@@ -11,10 +11,10 @@ from typing import Dict, Any, Tuple
 
 class GimbalPIDController:
     def __init__(self,
-                 kp: float = 0.85,
-                 ki: float = 0.05,
-                 kd: float = 0.12,
-                 max_slew_rate_deg_s: float = 45.0,
+                 kp: float = 3.6,
+                 ki: float = 0.80,
+                 kd: float = 0.18,
+                 max_slew_rate_deg_s: float = 60.0,
                  lock_threshold_deg: float = 0.50):
         # PID gains for Azimuth (Pan) and Elevation (Tilt)
         self.kp = kp
@@ -62,9 +62,12 @@ class GimbalPIDController:
                cx: float,
                cy: float,
                dt: float = 0.016,
-               tracking_active: bool = True) -> Dict[str, Any]:
+               tracking_active: bool = True,
+               feedforward_rate_az: float = 0.0,
+               feedforward_rate_el: float = 0.0) -> Dict[str, Any]:
         """
-        Calculates angular errors from optical center and updates gimbal orientation via PID control.
+        Calculates angular errors from optical center and updates gimbal orientation via PID control
+        with feedforward velocity rate commands during predictive coasting.
         """
         # 1. Convert pixel coordinate error to angular error relative to optical boresight
         # Delta Azimuth = atan((u - cx) / fx)
@@ -104,9 +107,9 @@ class GimbalPIDController:
         self.prev_error_az = eff_error_az
         self.prev_error_el = eff_error_el
 
-        # Dual-Axis PID command
-        cmd_rate_az = self.kp * eff_error_az + self.ki * self.integral_az + self.kd * deriv_az
-        cmd_rate_el = self.kp * eff_error_el + self.ki * self.integral_el + self.kd * deriv_el
+        # Dual-Axis PID command with Feedforward Kinematic Rate Compensation
+        cmd_rate_az = self.kp * eff_error_az + self.ki * self.integral_az + self.kd * deriv_az + feedforward_rate_az
+        cmd_rate_el = self.kp * eff_error_el + self.ki * self.integral_el + self.kd * deriv_el + feedforward_rate_el
 
         # Motor Slew Rate Limiting
         rate_az = float(np.clip(cmd_rate_az, -self.max_slew_rate, self.max_slew_rate))

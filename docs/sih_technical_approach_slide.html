@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIH 2026 | Technical Approach Slide (ISRO PS ID: 26169)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070a12;
+      --card-bg: rgba(14, 20, 36, 0.85);
+      --card-border: rgba(56, 189, 248, 0.25);
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-orange: #f97316;
+      --accent-rose: #f43f5e;
+      --accent-indigo: #818cf8;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #030712;
+      color: var(--text-main);
+      font-family: 'IBM Plex Sans', sans-serif;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .slide-wrapper {
+      width: 1333px;
+      height: 750px;
+      background: radial-gradient(circle at 10% 20%, #0d1527 0%, #070a14 70%, #03050a 100%);
+      border: 2px solid rgba(56, 189, 248, 0.35);
+      border-radius: 12px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(56, 189, 248, 0.15);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 32px;
+    }
+
+    /* Slide Header */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .team-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1.5px solid var(--accent-cyan);
+      border-radius: 20px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--accent-cyan);
+      letter-spacing: 1px;
+    }
+
+    .slide-title-area {
+      text-align: center;
+    }
+
+    .slide-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+    }
+
+    .slide-subtitle {
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--accent-emerald);
+      letter-spacing: 1px;
+    }
+
+    .isro-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(56, 189, 248, 0.2));
+      border: 1px solid rgba(249, 115, 22, 0.4);
+      padding: 6px 16px;
+      border-radius: 8px;
+    }
+
+    /* Content Layout */
+    .slide-content-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 20px;
+      flex: 1;
+      height: calc(100% - 75px);
+    }
+
+    /* Column 1: Tech Stack */
+    .tech-stack-column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-headline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .tech-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .tech-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      backdrop-filter: blur(8px);
+    }
+
+    .tech-card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-emerald);
+      text-transform: uppercase;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .tech-card-body {
+      font-size: 11.5px;
+      line-height: 1.35;
+      color: #cbd5e1;
+    }
+
+    .tech-card-body strong {
+      color: #ffffff;
+    }
+
+    .tech-card.wide {
+      grid-column: span 2;
+    }
+
+    .summary-box {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(52, 211, 153, 0.08));
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 11.5px;
+      line-height: 1.4;
+      color: #e2e8f0;
+    }
+
+    .summary-box strong {
+      color: var(--accent-amber);
+    }
+
+    /* Column 2: Architecture Flow */
+    .architecture-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .flow-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-left: 3px solid var(--accent-cyan);
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+
+    .flow-step.highlight {
+      border-left-color: var(--accent-emerald);
+      background: rgba(52, 211, 153, 0.08);
+    }
+
+    .flow-step.warn {
+      border-left-color: var(--accent-amber);
+    }
+
+    .step-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: #ffffff;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .step-desc {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .arrow-sep {
+      text-align: center;
+      font-size: 10px;
+      color: var(--accent-cyan);
+      margin: -2px 0;
+    }
+
+    /* Bottom KPI Badges */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .kpi-pill {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 6px;
+      padding: 6px 8px;
+      text-align: center;
+    }
+
+    .kpi-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-emerald);
+    }
+
+    .kpi-lbl {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* Template 2 Slide Container */
+    .slide-wrapper.template-2 .slide-content-grid {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .circular-flow-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .process-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 11px;
+      padding: 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .process-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .btn-bar {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .preview-toggle {
+      padding: 8px 16px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .preview-toggle.active {
+      background: var(--accent-cyan);
+      color: #000;
+      border-color: var(--accent-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="btn-bar">
+    <button class="preview-toggle active" onclick="switchSlide(1)">Slide Format 1: Tech Stack & Architecture Flow</button>
+    <button class="preview-toggle" onclick="switchSlide(2)">Slide Format 2: Methodology & Process of Implementation</button>
+  </div>
+
+  <!-- =========================================================================
+       SLIDE 1: TECH STACK & SYSTEM ARCHITECTURE
+       ========================================================================= -->
+  <div id="slide-1" class="slide-wrapper">
+    <!-- Header -->
+    <div class="slide-header">
+      <div class="team-badge">
+        <span>🚀</span> TEAM FALCONS
+      </div>
+      <div class="slide-title-area">
+        <div class="slide-title">TECHNICAL APPROACH</div>
+        <div class="slide-subtitle">ISRO SMART INDIA HACKATHON 2026 | PS ID: 26169</div>
+      </div>
+      <div class="isro-badge">
+        <span>🇮🇳</span> ISRO / DOS
+      </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="slide-content-grid">
+      <!-- Left Column: Tech Stack -->
+      <div class="tech-stack-column">
+        <div class="section-headline">
+          <span>❖</span> Technology Stack
+        </div>
+
+        <div class="tech-cards-grid">
+          <div class="tech-card">
+            <div class="tech-card-header">🌐 Frontend & 3D Twin</div>
+            <div class="tech-card-body">
+              <strong>Three.js (WebGL)</strong>, HTML5 Canvas HUD, Chart.js, Vanilla CSS Glassmorphism, IBM Plex Typography.
+            </div>
+          </div>
+
+          <div class="tech-card">
+            <div class="tech-card-header">⚡ Backend Engine</div>
+            <div class="tech-card-body">
+              <strong>Python 3.11+</strong>, FastAPI (ASGI), Uvicorn Server, Asyncio WebSockets (60 FPS), Pydantic.
+            </div>
+          </div>
+
+          <div class="tech-card">
+            <div class="tech-card-header">🧠 AI & Perception</div>
+            <div class="tech-card-body">
+              <strong>YOLOv8-FSOC</strong>, ONNX Runtime, TensorRT edge inference, Pinhole Camera Intrinsic Model.
+            </div>
+          </div>
+
+          <div class="tech-card">
+            <div class="tech-card-header">🎯 Estimation & Control</div>
+            <div class="tech-card-body">
+              <strong>6-DOF Extended Kalman Filter</strong>, Dual-Axis PID Servo with Anti-Windup & Slew Limit (45°/s).
+            </div>
+          </div>
+
+          <div class="tech-card wide">
+            <div class="tech-card-header">🔬 Optical Physics & Link Budget</div>
+            <div class="tech-card-body">
+              <strong>1550nm FSOC Model</strong>, Beer-Lambert Atmospheric Extinction, Gaussian Beam Profile, SNR & BER (Complementary Error Function).
+            </div>
+          </div>
+
+          <div class="tech-card wide">
+            <div class="tech-card-header">🔌 Hardware Interfaces & Benchmarks</div>
+            <div class="tech-card-body">
+              <strong>STM32 / ESP32</strong> (CAN-Bus / Micro-ROS), Pan-Tilt Brushless Gimbals, Pytest Suite, Automated 1-Click ISRO Benchmark Logger.
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>❖ FSOC AI Virtual Camera Tracking Engine:</strong> Custom YOLOv8 sub-pixel beacon localization, 6-DOF EKF trajectory extrapolation across 2.0s cloud occlusions, and closed-loop gimbal actuation at 60 FPS (< 5ms latency).
+        </div>
+      </div>
+
+      <!-- Right Column: Architecture Dataflow -->
+      <div class="architecture-column">
+        <div class="section-headline">
+          <span>❖</span> Closed-Loop System Architecture
+        </div>
+
+        <div class="flow-container">
+          <div class="flow-step">
+            <span class="step-num">01</span>
+            <div class="step-content">
+              <div class="step-title">3D Kinematics & Channel Engine</div>
+              <div class="step-desc">Target trajectory [X,Y,Z], platform jitter & weather extinction</div>
+            </div>
+          </div>
+
+          <div class="arrow-sep">▼ Projection Matrix (fx, fy, cx, cy)</div>
+
+          <div class="flow-step">
+            <span class="step-num">02</span>
+            <div class="step-content">
+              <div class="step-title">Virtual Pinhole Camera Sensor</div>
+              <div class="step-desc">Transforms world coordinates to 2D image plane (1920x1080)</div>
+            </div>
+          </div>
+
+          <div class="arrow-sep">▼ Sensor Frame (u, v)</div>
+
+          <div class="flow-step highlight">
+            <span class="step-num">03</span>
+            <div class="step-content">
+              <div class="step-title">AI Beacon Detector (YOLOv8-FSOC)</div>
+              <div class="step-desc">Sub-pixel centroid & bounding box extraction (< 2.1 ms)</div>
+            </div>
+          </div>
+
+          <div class="arrow-sep">▼ Measured Centroid [u, v] / Occlusion Flag</div>
+
+          <div class="flow-step highlight">
+            <span class="step-num">04</span>
+            <div class="step-content">
+              <div class="step-title">6-DOF Extended Kalman Filter (EKF)</div>
+              <div class="step-desc">State estimation [u, v, u̇, v̇, ü, v̈] + 2.0s occlusion prediction</div>
+            </div>
+          </div>
+
+          <div class="arrow-sep">▼ Slew Rate Commands (ΔAz, ΔEl)</div>
+
+          <div class="flow-step warn">
+            <span class="step-num">05</span>
+            <div class="step-content">
+              <div class="step-title">Dual-Axis PID Gimbal Controller</div>
+              <div class="step-desc">Clamped slew (≤ 45°/s) to maintain alignment within 8.72 mrad</div>
+            </div>
+          </div>
+
+          <div class="arrow-sep">▼ Pointing Error (θ_p)</div>
+
+          <div class="flow-step">
+            <span class="step-num">06</span>
+            <div class="step-content">
+              <div class="step-title">1550nm FSOC Optical Physics & Link</div>
+              <div class="step-desc">Beer-Lambert loss, RSSI (dBm), SNR (dB), BER ≤ 1e-9 (10 Gbps Lock)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-pill">
+            <div class="kpi-val">≤ 8.72 mrad</div>
+            <div class="kpi-lbl">Coarse Limit</div>
+          </div>
+          <div class="kpi-pill">
+            <div class="kpi-val">60 FPS</div>
+            <div class="kpi-lbl">Stream Rate</div>
+          </div>
+          <div class="kpi-pill">
+            <div class="kpi-val">&lt; 5.0 ms</div>
+            <div class="kpi-lbl">Latency</div>
+          </div>
+          <div class="kpi-pill">
+            <div class="kpi-val">&gt; 95.0%</div>
+            <div class="kpi-lbl">Lock Ret.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       SLIDE 2: METHODOLOGY & PROCESS OF IMPLEMENTATION
+       ========================================================================= -->
+  <div id="slide-2" class="slide-wrapper template-2" style="display: none;">
+    <!-- Header -->
+    <div class="slide-header">
+      <div class="team-badge">
+        <span>🚀</span> TEAM 404 THE OPTIMISTICS
+      </div>
+      <div class="slide-title-area">
+        <div class="slide-title">TECHNICAL APPROACH & METHODOLOGY</div>
+        <div class="slide-subtitle">SMART INDIA HACKATHON 2026 | PROBLEM STATEMENT ID: 26169</div>
+      </div>
+      <div class="isro-badge">
+        <span>🇮🇳</span> ISRO / DOS
+      </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="slide-content-grid">
+      <!-- Col 1: Methodology Flow -->
+      <div class="circular-flow-card">
+        <div class="section-headline" style="font-size: 15px;">
+          <span>🔄</span> 6-Stage Process Flow
+        </div>
+
+        <div class="process-item">
+          <div class="process-badge">1</div>
+          <div>
+            <strong>3D Kinematics & Channel</strong><br>
+            <span style="color: #94a3b8; font-size: 10px;">Target coordinates, wind turbulence & weather attenuation.</span>
+          </div>
+        </div>
+
+        <div class="process-item">
+          <div class="process-badge">2</div>
+          <div>
+            <strong>Virtual Camera Projection</strong><br>
+            <span style="color: #94a3b8; font-size: 10px;">Pinhole intrinsic transformation matrix [X,Y,Z] → [u,v].</span>
+          </div>
+        </div>
+
+        <div class="process-item">
+          <div class="process-badge">3</div>
+          <div>
+            <strong>AI YOLOv8 Beacon Detection</strong><br>
+            <span style="color: #94a3b8; font-size: 10px;">Sub-pixel centroid localization & confidence filter.</span>
+          </div>
+        </div>
+
+        <div class="process-item">
+          <div class="process-badge">4</div>
+          <div>
+            <strong>6-DOF EKF State Estimation</strong><br>
+            <span style="color: #94a3b8; font-size: 10px;">Trajectory extrapolation during 2.0s cloud occlusion.</span>
+          </div>
+        </div>
+
+        <div class="process-item">
+          <div class="process-badge">5</div>
+          <div>
+            <strong>Dual-Axis PID Gimbal Slew</strong><br>
+            <span style="color: #94a3b8; font-size: 10px;">Clamped rate (≤45°/s) to restore alignment < 8.72 mrad.</span>
+          </div>
+        </div>
+
+        <div class="process-item">
+          <div class="process-badge">6</div>
+          <div>
+            <strong>1550nm FSOC Optical Validation</strong><br>
+            <span style="color: #94a3b8; font-size: 10px;">RSSI, SNR, and BER link budget calculation at 60 FPS.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 2: Cyber-Physical Mapping -->
+      <div class="circular-flow-card">
+        <div class="section-headline" style="font-size: 15px;">
+          <span>🛰️</span> Simulation to Hardware
+        </div>
+
+        <div style="font-size: 11px; line-height: 1.5; color: #cbd5e1; display: flex; flex-direction: column; gap: 8px;">
+          <div style="background: rgba(15, 23, 42, 0.7); padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-cyan);">
+            <strong style="color: #fff;">Optical Perception:</strong><br>
+            Synthetic pinhole model ➔ High-speed InGaAs / SWIR Camera (1550nm).
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.7); padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-emerald);">
+            <strong style="color: #fff;">AI Inference Engine:</strong><br>
+            YOLOv8-FSOC ONNX ➔ Jetson Orin / FPGA Embedded AI board.
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.7); padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-amber);">
+            <strong style="color: #fff;">Gimbal Actuation:</strong><br>
+            Discrete PID servo ➔ Direct CAN-bus PWM to Pan-Tilt motors.
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.7); padding: 8px; border-radius: 6px; border-left: 3px solid var(--accent-indigo);">
+            <strong style="color: #fff;">Optical Link:</strong><br>
+            Gaussian propagation ➔ 100mW EDFA Laser + APD Photodiode.
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 3: Tech Stack Breakdown -->
+      <div class="circular-flow-card">
+        <div class="section-headline" style="font-size: 15px;">
+          <span>🛠️</span> Technologies Used
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="tech-card" style="padding: 6px 10px;">
+            <div class="tech-card-header" style="font-size: 11px;">🎨 Frontend</div>
+            <div class="tech-card-body" style="font-size: 10.5px;">React/Three.js WebGL, Canvas HUD, Chart.js, WebSockets.</div>
+          </div>
+          <div class="tech-card" style="padding: 6px 10px;">
+            <div class="tech-card-header" style="font-size: 11px;">⚡ Backend</div>
+            <div class="tech-card-body" style="font-size: 10.5px;">Python 3.11+, FastAPI (ASGI), Uvicorn, NumPy, SciPy.</div>
+          </div>
+          <div class="tech-card" style="padding: 6px 10px;">
+            <div class="tech-card-header" style="font-size: 11px;">🧠 AI & Estimation</div>
+            <div class="tech-card-body" style="font-size: 10.5px;">YOLOv8-FSOC, 6-DOF Extended Kalman Filter, PID Slew Controller.</div>
+          </div>
+          <div class="tech-card" style="padding: 6px 10px;">
+            <div class="tech-card-header" style="font-size: 11px;">📊 Benchmarking</div>
+            <div class="tech-card-body" style="font-size: 10.5px;">Automated 1-Click ISRO Performance Logger (JSON/CSV/PDF).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchSlide(idx) {
+      document.getElementById('slide-1').style.display = (idx === 1) ? 'flex' : 'none';
+      document.getElementById('slide-2').style.display = (idx === 2) ? 'flex' : 'none';
+      const btns = document.querySelectorAll('.preview-toggle');
+      btns[0].classList.toggle('active', idx === 1);
+      btns[1].classList.toggle('active', idx === 2);
+    }
+  </script>
+</body>
+</html>

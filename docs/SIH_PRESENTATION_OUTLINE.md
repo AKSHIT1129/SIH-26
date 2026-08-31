@@ -20,12 +20,23 @@
 
 ---
 
-### Slide 3: Our Proposed Solution & Architecture
-* **Integrated 4-Tier Architecture:**
-  1. **Virtual Camera & 3D Kinematics:** Pinhole sensor model with spherical basis projection.
-  2. **AI & EKF Perception Pipeline:** High-speed beacon detector + 6-DOF Extended Kalman Filter for continuous state estimation.
-  3. **Closed-Loop Gimbal Control:** Dual-axis PID with slew rate limiting and anti-windup.
-  4. **Physics-Accurate Optics Engine:** Gaussian beam propagation, Beer-Lambert attenuation, RSSI, SNR, and BER calculations.
+### Slide 3: Technical Approach & Technology Stack
+* **Technology Stack Breakdown:**
+  * **Frontend & Digital Twin:** Three.js (WebGL), HTML5 Canvas Telescope HUD, Chart.js, Vanilla CSS Glassmorphism, IBM Plex typography, Full-Duplex WebSockets.
+  * **Backend & Simulation Engine:** Python 3.11+, FastAPI (ASGI), Uvicorn Server, NumPy & SciPy (Vectorized Linear Algebra), Asyncio Non-blocking Event Loop.
+  * **AI Perception & Vision:** Custom YOLOv8-FSOC Beacon Detector, ONNX Runtime, TensorRT edge inference acceleration, Pinhole Camera Intrinsic Model ($K$).
+  * **Estimation & Control:** 6-DOF Extended Kalman Filter (EKF) with continuous-discrete Riccati propagation, Dual-Axis PID Controller with Anti-Windup & Slew Clamping ($\le 45^\circ/\text{s}$), Archimedean Spiral Search.
+  * **FSOC Optical Physics:** 1550nm C-Band EDFA Model, Beer-Lambert Extinction, Gaussian Beam Profile ($L_{\text{pointing}} = -8.686 (\theta_p/\theta_{\text{div}})^2$), SNR, and Complementary Error Function BER ($P_e = \frac{1}{2}\text{erfc}(\sqrt{\text{SNR}}/2\sqrt{2})$).
+  * **Hardware & Interfacing:** Micro-ROS, Serial CAN-Bus / gRPC, STM32 / ESP32 Microcontrollers, 2-Axis Pan-Tilt Brushless Gimbals, InGaAs/SWIR Optical Sensors.
+* **6-Phase Closed-Loop Implementation Flow:**
+  1. `3D Kinematics & Channel` ➔ 2. `Virtual Camera Projection` ➔ 3. `YOLOv8 Beacon Detection` ➔ 4. `6-DOF EKF Trajectory Extrapolation` ➔ 5. `Dual-Axis PID Gimbal Slew` ➔ 6. `1550nm FSOC Optical Validation`.
+* **Hardware vs. Simulation Digital Twin Mapping:**
+  * *Perception:* Pinhole Synthetic Sensor ➔ $1550\text{nm}$ InGaAs High-Speed SWIR Camera.
+  * *AI Inference:* YOLOv8 ONNX ➔ Jetson Orin / Embedded FPGA AI Accelerator.
+  * *Control:* Discrete PID Loop ➔ Direct CAN-bus PWM to Pan-Tilt Direct-Drive Motors.
+  * *Optical Link:* Gaussian Link Budget ➔ 100mW EDFA Laser Diode + APD Optical Photodetector.
+  * *Telemetry:* 60 FPS WebSocket Bus ➔ ISTRAC Ground Station CCSDS Protocol.
+
 
 ---
 

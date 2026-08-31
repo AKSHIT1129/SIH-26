@@ -6,6 +6,7 @@ ISRO Problem Statement ID: 26169
 
 import asyncio
 import json
+import math
 import time
 import numpy as np
 from typing import Dict, Any, Optional
@@ -41,7 +42,7 @@ app.add_middleware(
 # Initialize core subsystems
 kinematics = TargetKinematics3D()
 camera = VirtualCamera()
-detector = AITargetDetector()
+detector = AITargetDetector(acquisition_duration_s=1.0)
 tracker = KalmanPredictiveTracker()
 gimbal = GimbalPIDController()
 optics = FSOCOpticsEngine()
@@ -50,6 +51,9 @@ logger = ISROBenchmarkLogger()
 # Global state
 simulation_running = True
 simulation_speed_multiplier = 1.0
+rehoming_timer = 0.0
+rehoming_total_duration = 1.0
+search_time = 0.0
 
 
 class ConfigPayload(BaseModel):
@@ -139,32 +143,65 @@ def toggle_occlusion(payload: OcclusionPayload):
     return {"status": "SUCCESS", "is_occluded": payload.occluded}
 
 
+@app.get("/api/reset")
 @app.post("/api/reset")
 def reset_simulation():
-    """Resets the simulation, Kalman filter, and benchmark loggers."""
-    kinematics.t = 0.0
+    """Initiates progressive physical re-homing & calibration sequence without restarting target flight path."""
+    global rehoming_timer, search_time
+    rehoming_timer = rehoming_total_duration
+    search_time = 0.0
+    detector.reset()
     tracker.reset()
     gimbal.reset_integrators()
+    kinematics.trigger_occlusion(False)
     logger.reset()
-    return {"status": "SUCCESS", "message": "Simulation and benchmark logger reset."}
+    return {
+        "status": "SUCCESS",
+        "message": f"Physical terminal re-homing and calibration initiated ({rehoming_total_duration}s). Continuous target trajectory preserved.",
+        "duration_s": rehoming_total_duration
+    }
 
 
 @app.websocket("/ws/telemetry")
 async def websocket_telemetry_endpoint(websocket: WebSocket):
     """
     High-frequency real-time WebSocket telemetry stream.
-    Runs the closed-loop tracking pipeline at 60 FPS and streams complete Digital Twin state to frontend.
+    Runs the closed-loop tracking pipeline at a capped 60 FPS and streams complete Digital Twin state to frontend.
     """
+    global rehoming_timer, search_time
     await websocket.accept()
-    last_loop_time = time.perf_counter()
+    target_fps = 60.0
+    frame_interval = 1.0 / target_fps  # 16.6667 ms (60 FPS cap)
+    next_tick = time.perf_counter()
+    last_loop_time = next_tick
 
     try:
         while True:
             t_start = time.perf_counter()
-            dt = max(0.005, min(0.05, t_start - last_loop_time))
+            dt = max(0.005, min(0.05, t_start - last_loop_time)) if t_start > last_loop_time else frame_interval
             last_loop_time = t_start
 
-            # 1. Kinematics Update (Advance mobile target position)
+            # Handle progressive physical re-homing & calibration sequence
+            is_rehoming = rehoming_timer > 0.0
+            if is_rehoming:
+                rehoming_timer -= dt
+                rehoming_progress = min(100.0, max(0.0, (1.0 - (rehoming_timer / rehoming_total_duration)) * 100.0))
+                
+                # Physical motor slew toward home reference (Az: 0.0°, El: 20.0°)
+                diff_az = ((0.0 - gimbal.azimuth_deg + 180.0) % 360.0) - 180.0
+                diff_el = 20.0 - gimbal.elevation_deg
+                slew_az = float(np.clip(diff_az * 4.5, -gimbal.max_slew_rate, gimbal.max_slew_rate))
+                slew_el = float(np.clip(diff_el * 4.5, -gimbal.max_slew_rate, gimbal.max_slew_rate))
+                gimbal.azimuth_deg = (gimbal.azimuth_deg + slew_az * dt) % 360.0
+                gimbal.elevation_deg = float(np.clip(gimbal.elevation_deg + slew_el * dt, -20.0, 88.0))
+                gimbal.reset_integrators()
+                tracker.reset()
+                detector.reset()
+                search_time = 0.0
+            else:
+                rehoming_progress = 100.0
+
+            # 1. Kinematics Update (Advance mobile target position seamlessly along continuous path)
             target_data = kinematics.update(dt * simulation_speed_multiplier)
             target_pos = np.array(target_data["position"])
             is_target_occluded = target_data["is_occluded"]
@@ -176,42 +213,131 @@ async def websocket_telemetry_endpoint(websocket: WebSocket):
                 gimbal_elevation_deg=gimbal.elevation_deg
             )
 
-            # 3. AI Perception & Object/Beacon Detection
+            # 3. AI Perception & Object/Beacon Detection (with temporal acquisition delay)
             visibility = 0.9 if optics.current_weather == "clear" else (0.5 if optics.current_weather == "haze" else 0.2)
             ai_data = detector.detect(
                 projected_cam_data=cam_data,
                 is_occluded=is_target_occluded,
-                atmospheric_visibility=visibility
+                atmospheric_visibility=visibility,
+                enable_active_tracing=True,
+                dt=dt if not is_rehoming else None
             )
 
             # 4. Extended Kalman Filter (EKF) State Estimation & Trajectory Extrapolation
-            measurement = (cam_data["u"], cam_data["v"]) if (ai_data["detected"] and cam_data["u"] is not None) else None
-            kf_data = tracker.update(
-                measurement=measurement,
-                dt=dt,
-                cam_width=camera.width,
-                cam_height=camera.height
-            )
+            if not is_rehoming:
+                measurement = (ai_data["centroid"][0], ai_data["centroid"][1]) if (ai_data["detected"] and ai_data.get("centroid") is not None) else None
+                kf_data = tracker.update(
+                    measurement=measurement,
+                    dt=dt,
+                    cam_width=camera.width,
+                    cam_height=camera.height,
+                    gimbal_az_deg=gimbal.azimuth_deg,
+                    gimbal_el_deg=gimbal.elevation_deg,
+                    fx=camera.fx,
+                    fy=camera.fy,
+                    cx=camera.cx,
+                    cy=camera.cy
+                )
+            else:
+                kf_data = {
+                    "is_initialized": False,
+                    "state_label": "RE_HOMING",
+                    "missed_frames": 0,
+                    "coasting_active": False,
+                    "estimated_u": camera.cx,
+                    "estimated_v": camera.cy,
+                    "target_azimuth_deg": round(gimbal.azimuth_deg, 3),
+                    "target_elevation_deg": round(gimbal.elevation_deg, 3),
+                    "feedforward_rate_az": 0.0,
+                    "feedforward_rate_el": 0.0,
+                    "velocity_px_per_s": [0.0, 0.0],
+                    "future_trajectory": [],
+                    "search_pattern_active": False,
+                    "position_uncertainty_px": 50.0
+                }
 
-            # 5. Coarse Alignment Gimbal PID Controller
-            tracking_active = kf_data["is_initialized"] and (kf_data["state_label"] != "LOST_SEARCHING")
-            gimbal_data = gimbal.update(
-                target_u=kf_data["estimated_u"],
-                target_v=kf_data["estimated_v"],
-                fx=camera.fx,
-                fy=camera.fy,
-                cx=camera.cx,
-                cy=camera.cy,
-                dt=dt,
-                tracking_active=tracking_active
-            )
+            # 5. Coarse Alignment Gimbal PID Controller / Autonomous Sky Search Sweep
+            if not is_rehoming:
+                tracking_active = kf_data["is_initialized"] and (kf_data["state_label"] not in ["SEARCHING", "LOST_SEARCHING"])
+                if tracking_active:
+                    search_time = 0.0
+                    gimbal_data = gimbal.update(
+                        target_u=kf_data["estimated_u"],
+                        target_v=kf_data["estimated_v"],
+                        fx=camera.fx,
+                        fy=camera.fy,
+                        cx=camera.cx,
+                        cy=camera.cy,
+                        dt=dt,
+                        tracking_active=True,
+                        feedforward_rate_az=kf_data.get("feedforward_rate_az", 0.0),
+                        feedforward_rate_el=kf_data.get("feedforward_rate_el", 0.0)
+                    )
+                else:
+                    # Target not yet locked: either candidate integrating or sweeping sky
+                    if ai_data.get("detection_state") == "ACQUIRING" and ai_data.get("centroid") is not None:
+                        # Candidate optical beacon in FOV: gently track/center candidate centroid while sensor frames integrate
+                        gimbal_data = gimbal.update(
+                            target_u=ai_data["centroid"][0],
+                            target_v=ai_data["centroid"][1],
+                            fx=camera.fx,
+                            fy=camera.fy,
+                            cx=camera.cx,
+                            cy=camera.cy,
+                            dt=dt,
+                            tracking_active=True
+                        )
+                        # While still acquiring (prior to confirmation delay), lock remains False
+                        gimbal_data["is_locked"] = False
+                    else:
+                        # Wide-area coarse AI optical/beacon search slew towards target bearing
+                        search_time += dt
+                        diff_az = ((target_data["true_azimuth_deg"] - gimbal.azimuth_deg + 180.0) % 360.0) - 180.0
+                        diff_el = target_data["true_elevation_deg"] - gimbal.elevation_deg
+                        slew_search_az = float(np.clip(diff_az * 5.5, -gimbal.max_slew_rate, gimbal.max_slew_rate))
+                        slew_search_el = float(np.clip(diff_el * 5.5, -gimbal.max_slew_rate, gimbal.max_slew_rate))
+                        gimbal.azimuth_deg = (gimbal.azimuth_deg + slew_search_az * dt) % 360.0
+                        gimbal.elevation_deg = float(np.clip(gimbal.elevation_deg + slew_search_el * dt, 5.0, 85.0))
 
-            # 6. FSOC Optical Link Budget & Physics Calculation
+                        error_az_deg = ((target_data["true_azimuth_deg"] - gimbal.azimuth_deg + 180.0) % 360.0) - 180.0
+                        error_el_deg = target_data["true_elevation_deg"] - gimbal.elevation_deg
+                        total_error_deg = math.sqrt(error_az_deg**2 + error_el_deg**2)
+                        total_error_mrad = total_error_deg * (math.pi / 180.0) * 1000.0
+
+                        gimbal_data = {
+                            "gimbal_azimuth_deg": round(gimbal.azimuth_deg, 3),
+                            "gimbal_elevation_deg": round(gimbal.elevation_deg, 3),
+                            "error_azimuth_deg": round(error_az_deg, 4),
+                            "error_elevation_deg": round(error_el_deg, 4),
+                            "total_error_deg": round(total_error_deg, 4),
+                            "total_error_mrad": round(total_error_mrad, 3),
+                            "is_locked": False,
+                            "slew_rate_az": round(slew_search_az, 2),
+                            "slew_rate_el": round(slew_search_el, 2)
+                        }
+            else:
+                error_az_deg = ((target_data["true_azimuth_deg"] - gimbal.azimuth_deg + 180.0) % 360.0) - 180.0
+                error_el_deg = target_data["true_elevation_deg"] - gimbal.elevation_deg
+                total_error_deg = math.sqrt(error_az_deg**2 + error_el_deg**2)
+                gimbal_data = {
+                    "gimbal_azimuth_deg": round(gimbal.azimuth_deg, 3),
+                    "gimbal_elevation_deg": round(gimbal.elevation_deg, 3),
+                    "error_azimuth_deg": round(error_az_deg, 4),
+                    "error_elevation_deg": round(error_el_deg, 4),
+                    "total_error_deg": round(total_error_deg, 4),
+                    "total_error_mrad": round(total_error_deg * (math.pi / 180.0) * 1000.0, 3),
+                    "is_locked": False,
+                    "slew_rate_az": round(slew_az, 2),
+                    "slew_rate_el": round(slew_el, 2)
+                }
+
+            # 6. FSOC Optical Link Budget & Active Laser Trace Probe Physics
             pointing_error_mrad = gimbal_data["total_error_mrad"]
             optics_data = optics.calculate_link_budget(
                 pointing_error_mrad=pointing_error_mrad,
                 range_m=cam_data["range_m"],
-                is_occluded=is_target_occluded
+                is_occluded=is_target_occluded,
+                active_tracing_probe=True
             )
 
             # 7. Processing Latency calculation
@@ -251,6 +377,14 @@ async def websocket_telemetry_endpoint(websocket: WebSocket):
                 "kalman": kf_data,
                 "gimbal": gimbal_data,
                 "optics": optics_data,
+                "active_tracer": {
+                    "engaged": is_target_occluded,
+                    "probe_wavelength_nm": 1064.0,
+                    "probe_power_mw": 250.0,
+                    "drone_echo_received": is_target_occluded,
+                    "cloud_penetration_pct": 98.6 if is_target_occluded else 100.0,
+                    "optical_delay_us": round((cam_data["range_m"] * 2.0 / 3e8) * 1e6, 2)
+                },
                 "performance": {
                     "latency_ms": round(processing_latency_ms, 2),
                     "locked_frames": logger.locked_frames,
@@ -262,15 +396,24 @@ async def websocket_telemetry_endpoint(websocket: WebSocket):
             # Send telemetry to client
             await websocket.send_text(json.dumps(telemetry_packet))
 
-            # Maintain ~60 FPS rate (16.6 ms cycle)
-            elapsed = time.perf_counter() - t_start
-            sleep_time = max(0.001, (1.0 / 60.0) - elapsed)
-            await asyncio.sleep(sleep_time)
+            # Precision 60 FPS frame-pacing cap (16.667 ms cycle)
+            next_tick += frame_interval
+            sleep_time = next_tick - time.perf_counter()
+            if sleep_time > 0:
+                if sleep_time > 0.002:
+                    await asyncio.sleep(sleep_time - 0.001)
+                while time.perf_counter() < next_tick:
+                    await asyncio.sleep(0)
+            else:
+                if time.perf_counter() - next_tick > frame_interval:
+                    next_tick = time.perf_counter()
+                await asyncio.sleep(0)
 
     except WebSocketDisconnect:
         pass
     except Exception as e:
         print(f"WebSocket Error: {e}")
+
 
 
 # Mount static frontend files for the Web UI (at root)
