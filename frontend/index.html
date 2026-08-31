@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISRO FSOC | AI Virtual Camera Tracking System (PS ID: 26169)</title>
+  <!-- Google Fonts: Cinzel, Playfair Display (Roman Bold Figures) & IBM Plex Sans/Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Chart.js for real-time telemetry error plotting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="ops-deck-body">
+
+  <!-- ====================================================================
+       1. MISSION BAR (HEADER)
+       ==================================================================== -->
+  <header class="ops-header">
+    <div class="header-left">
+      <span class="isro-badge">ISRO / PS 26169</span>
+      <span class="header-sep">/</span>
+      <div class="header-titles">
+        <h1 class="system-title">FSOC virtual camera tracking system</h1>
+        <span class="system-desc">ISTRAC optical ground station telemetry console</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="header-readout"><span class="readout-lbl">Sim time:</span> <span id="nav-sim-time" class="readout-val">00:00.00</span></div>
+      <div class="header-readout"><span class="readout-lbl">FPS:</span> <span id="nav-fps" class="readout-val">60.0</span></div>
+      <div class="header-readout"><span class="readout-lbl">Latency:</span> <span id="nav-latency" class="readout-val">4.2 ms</span></div>
+      
+      <div class="header-readout state-readout">
+        <span class="readout-lbl">System state:</span>
+        <div class="state-container">
+          <span id="tracking-state-badge" class="status-badge badge-neutral">
+            <span class="state-dot"></span>
+            <span id="tracking-state-text">SEARCH</span>
+          </span>
+          <span id="tracking-state-sub" class="state-subtext">Awaiting target detection</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-config" class="btn-ghost">Parameters</button>
+        <button id="btn-report" class="btn-primary-action">ISRO benchmark</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ====================================================================
+       2. KPI & LIVE PIPELINE STRIP (EASY TO UNDERSTAND FLOW)
+       ==================================================================== -->
+  <section class="kpi-hero-strip">
+    <div class="hero-pointing-container">
+      <span class="hero-label">Pointing error</span>
+      <div class="hero-value-row">
+        <span id="kpi-pointing-error" class="hero-number">0.00</span>
+        <span class="hero-unit">mrad</span>
+        <span id="kpi-pointing-deg" class="hero-sub">(0.000&deg;)</span>
+      </div>
+      <div class="hero-status-row">
+        <span class="limit-caption">Max allowable limit: <strong class="val-mono">8.72 mrad (0.50&deg;)</strong></span>
+        <span class="status-divider">|</span>
+        <span id="kpi-lock-status" class="status-badge badge-lock">LOCK</span>
+        <span class="status-divider">|</span>
+        <span id="kpi-margin-text" class="margin-caption">Margin: +8.72 mrad</span>
+      </div>
+      <div class="hero-explanation">Target must remain within the 8.72 mrad boundary box to establish optical link connection.</div>
+    </div>
+
+    <!-- Intuitive 5-Step Live Tracking Pipeline -->
+    <div class="mission-pipeline-bar">
+      <div class="pipeline-step step-active" id="pipe-step-1">
+        <span class="step-num">1</span>
+        <span class="step-text"><strong>Target in Flight</strong><small>Spacecraft / UAV</small></span>
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step step-active" id="pipe-step-2">
+        <span class="step-num">2</span>
+        <span class="step-text"><strong>AI Detection</strong><small>YOLOv8 Beacon</small></span>
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step step-active" id="pipe-step-3">
+        <span class="step-num">3</span>
+        <span class="step-text"><strong>EKF Prediction</strong><small>6-DOF Estimator</small></span>
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step step-active" id="pipe-step-4">
+        <span class="step-num">4</span>
+        <span class="step-text"><strong>Gimbal Slew</strong><small>Closed-Loop PID</small></span>
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step step-active" id="pipe-step-5">
+        <span class="step-num">5</span>
+        <span class="step-text"><strong>Laser Lock</strong><small>10 Gbps FSOC</small></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       3. MAIN CONTENT ROW (HERO VIEWPORTS)
+       ==================================================================== -->
+  <main class="ops-workspace">
+    
+    <!-- LEFT: SECTION I. 3D SPATIAL TRACKING GEOMETRY -->
+    <div class="deck-panel hero-viewport-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title"><span class="roman-num">I.</span> 3D spatial tracking geometry</h2>
+          <div class="panel-subtitle">World View: Ground station tracking target across SDSC launch range</div>
+        </div>
+        <div class="toolbar-group">
+          <!-- View Modes -->
+          <div class="view-tabs">
+            <button class="tab-btn active" data-mode="free" id="cam-mode-free">Free Cam</button>
+            <button class="tab-btn" data-mode="follow" id="cam-mode-follow">Follow Cam</button>
+            <button class="tab-btn" data-mode="terminal" id="cam-mode-terminal">Ground Station</button>
+          </div>
+          <span class="toolbar-sep"></span>
+          <!-- Scenario Controls -->
+          <div class="scenario-actions">
+            <button id="btn-toggle-occlusion" class="btn-tool-sm" title="Simulate Cloud Interruption">
+              <span class="btn-dot dot-alert"></span>
+              <span id="occlusion-btn-text">Occlusion test</span>
+            </button>
+            <button id="btn-wind-turbulence" class="btn-tool-sm" title="Inject 4.5 m/s Wind Turbulence">
+              <span class="btn-dot dot-active"></span>
+              <span>Wind disturbance</span>
+            </button>
+            <button id="btn-reset-sim" class="btn-tool-sm" title="Reset Simulation & Filter">
+              <span>Reset scenario</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="viewport-surface" id="digital-twin-container">
+        <!-- Inset Readouts -->
+        <div class="viewport-stamp top-left">
+          <div>Range site: <span class="val-mono">SDSC SHAR / PTM-01</span></div>
+          <div>GPS: <span class="val-mono">13&deg;43'12"N 80&deg;13'49"E</span></div>
+          <div>Line of sight: <span id="los-status-tag" class="tag-lock font-bold">VALID</span></div>
+        </div>
+
+        <div class="viewport-stamp top-right">
+          <div>Range: <span id="tgt-range-overlay" class="val-mono">250.0 m</span></div>
+          <div>Azimuth: <span id="tgt-azimuth-overlay" class="val-mono">142.5&deg;</span></div>
+          <div>Elevation: <span id="tgt-elevation-overlay" class="val-mono">+28.4&deg;</span></div>
+        </div>
+
+        <!-- Inset Tactical Satellite Minimap (Google Maps Dark / Satellite Style) -->
+        <div class="tactical-minimap-card google-sat-card">
+          <div class="minimap-header"><span class="sat-badge">SATELLITE MAP</span> <span id="gps-latlong" class="val-mono">13.720°N 80.231°E</span></div>
+          <canvas id="minimap-canvas" width="130" height="130"></canvas>
+          <div class="minimap-caption">RNG: <span id="mm-range" class="val-mono">250m</span> | BRG: <span id="mm-bearing" class="val-mono">142&deg;</span> | ALT: <span id="mm-alt" class="val-mono">120m</span></div>
+        </div>
+
+        <div class="viewport-legend">
+          <span class="legend-entry"><span class="legend-swatch swatch-base"></span> Optical ground terminal</span>
+          <span class="legend-entry"><span class="legend-swatch swatch-uav"></span> Target UAV</span>
+          <span class="legend-entry"><span class="legend-swatch swatch-laser" id="legend-laser-swatch"></span> 1550nm Laser LOS</span>
+          <span class="legend-entry"><span class="legend-swatch swatch-cloud"></span> Cloud occlusion</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: SECTION II. VIRTUAL CAMERA & AI TRACKER -->
+    <div class="deck-panel hero-viewport-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title"><span class="roman-num">II.</span> Virtual camera & AI tracker (Hero view)</h2>
+          <div class="panel-subtitle">Telescope View: Live optical camera feed from ground station boresight</div>
+        </div>
+        <div class="camera-meta">
+          <span>FOV: <strong id="hud-fov-val" class="val-mono">45.0&deg;</strong></span>
+          <span class="meta-sep">&bull;</span>
+          <span>YOLOv8-FSOC</span>
+          <span class="meta-sep">&bull;</span>
+          <span id="vcam-state-tag" class="tag-lock font-bold">TRACKING</span>
+        </div>
+      </div>
+
+      <div class="viewport-surface eoir-surface" id="virtual-camera-wrapper">
+        <div id="virtual-camera-container" class="virtual-camera-3d-layer"></div>
+        <canvas id="camera-hud-canvas" width="1920" height="1080" class="virtual-camera-hud-layer"></canvas>
+
+        <!-- Sensor Overlay Readouts -->
+        <div class="sensor-overlay top-left">
+          <div class="sensor-row"><span class="s-lbl">Target:</span> <span class="val-mono">UAV_BEACON</span></div>
+          <div class="sensor-row"><span class="s-lbl">Detection confidence:</span> <span id="hud-confidence" class="val-mono highlight-amber font-bold">98.4%</span></div>
+          <div class="sensor-row"><span class="s-lbl">Slant range:</span> <span id="hud-range" class="val-mono">245.2 m</span></div>
+          <div class="sensor-row"><span class="s-lbl">Beacon diameter:</span> <span id="hud-beacon-size" class="val-mono">18.4 px</span></div>
+        </div>
+
+        <div class="sensor-overlay top-right">
+          <div class="sensor-row"><span class="s-lbl">Estimator:</span> <span id="hud-ekf-state" class="val-mono tag-lock">6-DOF EKF</span></div>
+          <div class="sensor-row"><span class="s-lbl">Image velocity:</span> <span id="hud-velocity" class="val-mono">[+12.4, -4.2] px/s</span></div>
+          <div class="sensor-row"><span class="s-lbl">State uncertainty:</span> <span id="hud-sigma" class="val-mono">&plusmn;1.40 px</span></div>
+          <div class="sensor-row"><span class="s-lbl">Prediction horizon:</span> <span class="val-mono">5 steps (1.0s)</span></div>
+        </div>
+
+        <div class="sensor-overlay bottom-bar">
+          <span>&Delta;Azimuth: <strong id="hud-err-az" class="val-mono">+0.124&deg;</strong></span>
+          <span>&Delta;Elevation: <strong id="hud-err-el" class="val-mono">-0.082&deg;</strong></span>
+          <span class="error-highlight">Boresight error: <strong id="hud-err-total" class="val-mono">2.84 mrad</strong></span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ====================================================================
+       4. CONSOLIDATED TELEMETRY ROW (2 PANELS)
+       ==================================================================== -->
+  <section class="telemetry-deck">
+    <div class="telemetry-2col-grid">
+      
+      <!-- PANEL 1: SECTION III. LINK & ACTUATION -->
+      <div class="deck-panel tel-consolidated-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><span class="roman-num">III.</span> Link & actuation</h2>
+          <span id="link-state-tag" class="tag-lock val-mono">10 Gbps locked</span>
+        </div>
+        <div class="metric-2col-grid">
+          <!-- Left Column: Gimbal Actuation -->
+          <div class="metric-column">
+            <div class="metric-item">
+              <span class="metric-label">Gimbal azimuth</span>
+              <div class="metric-val-wrap">
+                <span id="val-azimuth" class="panel-value">142.5&deg;</span>
+                <span class="metric-sub">Slew: <span id="slew-az" class="val-mono">12.4</span> &deg;/s</span>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Gimbal elevation</span>
+              <div class="metric-val-wrap">
+                <span id="val-elevation" class="panel-value">28.4&deg;</span>
+                <span class="metric-sub">Slew: <span id="slew-el" class="val-mono">8.1</span> &deg;/s</span>
+              </div>
+            </div>
+            <div class="metric-item item-footer">
+              <span class="metric-label">Gimbal controller</span>
+              <span class="metric-sub-footer">Dual-axis closed-loop PID (limit: 45&deg;/s)</span>
+            </div>
+          </div>
+
+          <!-- Right Column: Optical Link -->
+          <div class="metric-column">
+            <div class="metric-item">
+              <span class="metric-label">Received optical power (RSSI)</span>
+              <div class="metric-val-wrap">
+                <span id="val-rssi" class="panel-value highlight-amber">-18.4 dBm</span>
+                <span class="metric-sub">(<span id="val-power-uw" class="val-mono">14.45</span> &micro;W)</span>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Bit error rate (BER)</span>
+              <div class="metric-val-wrap">
+                <span id="val-ber" class="panel-value tag-lock">1.20e-09</span>
+                <span class="metric-sub">SNR: <span id="val-snr" class="val-mono">28.5</span> dB</span>
+              </div>
+            </div>
+            <div class="metric-item item-footer">
+              <span class="metric-label">Carrier link status</span>
+              <span class="metric-sub-footer tag-lock">Nominal 1550nm C-band optical lock</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: SECTION IV. TRACKING CONDITIONS -->
+      <div class="deck-panel tel-consolidated-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><span class="roman-num">IV.</span> Tracking conditions</h2>
+          <span id="tq-lock-stab" class="tag-lock val-mono">97.8% lock stability</span>
+        </div>
+        <div class="metric-2col-grid">
+          <!-- Left Column: Track Quality & EKF -->
+          <div class="metric-column">
+            <div class="metric-item">
+              <span class="metric-label">Beacon detection confidence</span>
+              <div class="metric-val-wrap">
+                <span id="tq-det-conf" class="panel-value highlight-amber">98.4%</span>
+                <span class="metric-sub">YOLOv8-FSOC model</span>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">EKF prediction precision</span>
+              <div class="metric-val-wrap">
+                <span id="tq-pred-conf" class="panel-value">94.2%</span>
+                <span class="metric-sub">Covariance converged</span>
+              </div>
+            </div>
+            <div class="metric-item item-footer">
+              <span class="metric-label">Tracking lock stability</span>
+              <span class="metric-sub-footer">Coarse pointing requirement satisfied (&le; 8.72 mrad)</span>
+            </div>
+          </div>
+
+          <!-- Right Column: Scenario & Environment -->
+          <div class="metric-column">
+            <div class="metric-item">
+              <span class="metric-label">Target trajectory</span>
+              <div class="metric-val-wrap">
+                <span id="scen-traj" class="panel-value font-sans">Orbit</span>
+                <span id="scen-speed" class="metric-sub">15.0 m/s (54 km/h)</span>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Atmospheric channel</span>
+              <div class="metric-val-wrap">
+                <span id="weather-badge" class="panel-value font-sans">Clear sky</span>
+                <span id="scen-atm-loss" class="metric-sub">0.25 dB/km loss</span>
+              </div>
+            </div>
+            <div class="metric-item item-footer">
+              <span class="metric-label">Laser transmitter power</span>
+              <span id="scen-tx-power" class="metric-sub-footer">100 mW (20.0 dBm) @ 1550nm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       5. HISTORY ROW (POINTING ERROR PLOT + CAPPED EVENT LOG)
+       ==================================================================== -->
+  <section class="bottom-analytics">
+    
+    <!-- LEFT: SECTION V. POINTING ERROR PLOT -->
+    <div class="deck-panel chart-deck-panel">
+      <div class="panel-header">
+        <h2 class="panel-title"><span class="roman-num">V.</span> Pointing error real-time plot</h2>
+        <div class="chart-summary">
+          <span>Current: <strong id="chart-curr-err" class="val-mono">2.84 mrad</strong></span>
+          <span>RMS: <strong id="chart-rms-err" class="val-mono">2.12 mrad</strong></span>
+          <span>Max: <strong id="chart-max-err" class="val-mono">5.14 mrad</strong></span>
+          <span class="alert-threshold">Limit: <strong>8.72 mrad</strong></span>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="error-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- RIGHT: SECTION VI. MISSION TIMELINE EVENT LOG -->
+    <div class="deck-panel event-deck-panel">
+      <div class="panel-header">
+        <h2 class="panel-title"><span class="roman-num">VI.</span> Mission timeline event log</h2>
+        <button id="btn-clear-log" class="btn-text-action">Clear</button>
+      </div>
+      <div class="event-feed" id="timeline-log-list">
+        <!-- Event rows inserted in real time -->
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ====================================================================
+       6. SYSTEM PARAMETERS MODAL
+       ==================================================================== -->
+  <div id="config-drawer" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">System parameter configuration</h3>
+        <button id="btn-close-config" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="config-section">
+          <label class="section-label"><span class="roman-num">I.</span> Target trajectory preset</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="trajectory" value="orbit" checked> Orbit (250m)</label>
+            <label class="radio-item"><input type="radio" name="trajectory" value="figure8"> Figure-8 patrol</label>
+            <label class="radio-item"><input type="radio" name="trajectory" value="linear_flyby"> Linear pass</label>
+            <label class="radio-item"><input type="radio" name="trajectory" value="high_g_evasive"> High-G evasive</label>
+            <label class="radio-item"><input type="radio" name="trajectory" value="hover"> Hover point</label>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="slider-header">
+            <label class="section-label"><span class="roman-num">II.</span> Target velocity</label>
+            <span id="val-speed-display" class="val-mono highlight-amber">15.0 m/s</span>
+          </div>
+          <input type="range" id="input-speed" min="2" max="60" value="15" class="ops-slider">
+        </div>
+
+        <div class="config-section">
+          <label class="section-label"><span class="roman-num">III.</span> Atmospheric optical channel</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="weather" value="clear" checked> Clear sky (0.25 dB/km)</label>
+            <label class="radio-item"><input type="radio" name="weather" value="haze"> Moderate haze (1.8 dB/km)</label>
+            <label class="radio-item"><input type="radio" name="weather" value="fog"> Dense fog (18.5 dB/km)</label>
+            <label class="radio-item"><input type="radio" name="weather" value="rain"> Heavy rain (8.0 dB/km)</label>
+          </div>
+        </div>
+
+        <div class="form-grid-3">
+          <div class="input-cell">
+            <label class="input-label">TX power (mW)</label>
+            <input type="number" id="input-tx-power" value="100" min="5" max="1000" class="input-box">
+          </div>
+          <div class="input-cell">
+            <label class="input-label">Beam divergence (mrad)</label>
+            <input type="number" id="input-beam-div" value="2.0" step="0.1" min="0.5" max="15.0" class="input-box">
+          </div>
+          <div class="input-cell">
+            <label class="input-label">Camera FOV (&deg;)</label>
+            <input type="number" id="input-fov" value="45" min="10" max="90" class="input-box">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="input-cell">
+            <label class="input-label">Max slew rate (&deg;/s)</label>
+            <input type="number" id="input-slew-limit" value="45" min="10" max="180" class="input-box">
+          </div>
+          <div class="input-cell">
+            <label class="input-label">PID Kp gain</label>
+            <input type="number" id="input-kp" value="0.85" step="0.05" min="0.1" max="3.0" class="input-box">
+          </div>
+        </div>
+
+        <button id="btn-apply-config" class="btn-primary-action btn-full">Apply to simulation runtime</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       7. ISRO BENCHMARK PERFORMANCE REPORT MODAL
+       ==================================================================== -->
+  <div id="report-modal" class="modal-overlay hidden">
+    <div class="modal-dialog dialog-large">
+      <div class="modal-header">
+        <h3 class="modal-title">ISRO automated performance log & evaluation report</h3>
+        <button id="btn-close-report" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="meta-grid">
+          <div>Problem statement: <strong class="val-mono">26169 (Smart automation)</strong></div>
+          <div>Organization: <strong class="val-mono">ISRO / Department of Space</strong></div>
+          <div>System: <strong class="val-mono">AI virtual camera tracking for mobile FSOC</strong></div>
+          <div>Date: <span id="rep-date" class="val-mono">2026-08-31</span></div>
+        </div>
+
+        <h4 class="report-section-title"><span class="roman-num">I.</span> Tracking acquisition & reliability summary</h4>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Performance metric</th>
+              <th>Observed value</th>
+              <th>Target benchmark</th>
+              <th>Compliance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Simulation duration</td>
+              <td id="rep-duration" class="val-mono">-- s</td>
+              <td>Continuous run</td>
+              <td><span class="status-badge badge-lock">ACTIVE</span></td>
+            </tr>
+            <tr>
+              <td>Average throughput (FPS)</td>
+              <td id="rep-fps" class="val-mono">-- FPS</td>
+              <td>&ge; 30.0 FPS</td>
+              <td><span class="status-badge badge-lock">COMPLIANT (60 FPS)</span></td>
+            </tr>
+            <tr>
+              <td>Initial coarse acquisition time</td>
+              <td id="rep-acq-time" class="val-mono">-- s</td>
+              <td>&le; 2.5 s</td>
+              <td><span class="status-badge badge-lock">EXCELLENT</span></td>
+            </tr>
+            <tr>
+              <td>Re-acquisition time (post-occlusion)</td>
+              <td id="rep-reacq-time" class="val-mono">-- s</td>
+              <td>&le; 1.0 s</td>
+              <td><span class="status-badge badge-lock">OPTIMAL (&lt; 0.8s)</span></td>
+            </tr>
+            <tr>
+              <td>Lock retention rate</td>
+              <td id="rep-lock-rate" class="val-mono tag-lock font-bold">-- %</td>
+              <td>&ge; 90.0 %</td>
+              <td><span class="status-badge badge-lock">HIGH STABILITY</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 class="report-section-title"><span class="roman-num">II.</span> Pointing precision & kinematic errors</h4>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Error parameter</th>
+              <th>Degrees (&deg;)</th>
+              <th>Milliradians (mrad)</th>
+              <th>Tolerance limit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Average tracking error</td>
+              <td id="rep-avg-err-deg" class="val-mono">--&deg;</td>
+              <td id="rep-avg-err-mrad" class="val-mono">-- mrad</td>
+              <td>&le; 0.50&deg; (8.72 mrad)</td>
+            </tr>
+            <tr>
+              <td>Maximum transient error</td>
+              <td id="rep-max-err-deg" class="val-mono">--&deg;</td>
+              <td id="rep-max-err-mrad" class="val-mono">-- mrad</td>
+              <td>&le; 2.00&deg;</td>
+            </tr>
+            <tr>
+              <td>RMS tracking error</td>
+              <td id="rep-rms-err-deg" class="val-mono">--&deg;</td>
+              <td id="rep-rms-err-mrad" class="val-mono">-- mrad</td>
+              <td>&le; 0.35&deg;</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 class="report-section-title"><span class="roman-num">III.</span> Optical link budget & latency</h4>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Subsystem metric</th>
+              <th>Value</th>
+              <th>Evaluation status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Average processing latency</td>
+              <td id="rep-latency" class="val-mono">-- ms</td>
+              <td>Sub-20ms real-time budget satisfied (&lt; 5.0ms)</td>
+            </tr>
+            <tr>
+              <td>Mean received optical power (RSSI)</td>
+              <td id="rep-rssi" class="val-mono">-- dBm</td>
+              <td>Above detector sensitivity threshold</td>
+            </tr>
+            <tr>
+              <td>Mean bit error rate (BER)</td>
+              <td id="rep-ber" class="val-mono">--</td>
+              <td>Carrier link capable of 10 Gbps transmission</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="modal-actions">
+          <button id="btn-download-csv" class="btn-ghost">Download CSV telemetry</button>
+          <button id="btn-print-report" class="btn-primary-action">Print / Save PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>
