@@ -3,7 +3,6 @@
 ### Smart India Hackathon 2026 | Problem Statement ID: 26169
 **Organization:** Indian Space Research Organisation (ISRO) / Department of Space  
 **Category & Theme:** Software | Smart Automation  
-**Repository:** [https://github.com/AKSHIT1129/SIH-26](https://github.com/AKSHIT1129/SIH-26)
 
 ---
 
