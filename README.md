@@ -7,7 +7,7 @@
 
 ---
 
-## 🛰️ 1. Executive Summary
+##  1. Executive Summary
 
 This system implements a production-grade, end-to-end cyber-physical software solution for the **coarse optical alignment of mobile Free Space Optical Communication (FSOC) terminals** (such as UAVs, high-altitude pseudo-satellites, and LEO satellite ground stations).
 
@@ -15,7 +15,7 @@ By integrating a pinhole virtual camera sensor with realistic intrinsic optics, 
 
 ---
 
-## ⚡ 2. 3-Second Precision Reset & Drone Tracing Sequence
+##  2. 3-Second Precision Reset & Drone Tracing Sequence
 
 The system features an autonomous **3-Second Re-Homing & Tracing Sequence** triggered upon clicking the **Reset** button in Mission Control:
 
@@ -53,7 +53,7 @@ gantt
 
 ---
 
-## 🏗️ 3. System Architecture & Closed-Loop Pipeline
+##  3. System Architecture & Closed-Loop Pipeline
 
 The pipeline operates as a continuous closed-loop cyber-physical control system:
 
@@ -86,7 +86,7 @@ flowchart TD
 
 ---
 
-## 🔬 4. Simulation vs. Real Hardware Mapping
+##  4. Simulation vs. Real Hardware Mapping
 
 | Subsystem Component | In Current System (SIH Demo) | Mapping to Real ISRO Ground Station Hardware |
 | :--- | :--- | :--- |
@@ -99,7 +99,7 @@ flowchart TD
 
 ---
 
-## 🧮 5. Mathematical Formulations
+##  5. Mathematical Formulations
 
 ### 1. Virtual Camera Pinhole Projection
 $$\begin{bmatrix} u \\ v \\ 1 \end{bmatrix} = \frac{1}{Z_c} \begin{bmatrix} f_x & 0 & c_x \\ 0 & f_y & c_y \\ 0 & 0 & 1 \end{bmatrix} \begin{bmatrix} X_c \\ Y_c \\ Z_c \end{bmatrix}$$
@@ -115,7 +115,7 @@ $$\text{BER} = \frac{1}{2} \text{erfc}\left(\frac{\sqrt{\text{SNR}}}{2\sqrt{2}}\
 
 ---
 
-## 🚀 6. Quick Start & Execution
+##  6. Quick Start & Execution
 
 ### Prerequisites
 * Python 3.10 to 3.14
@@ -144,7 +144,7 @@ Open **`http://localhost:8000`** in your browser.
 
 ---
 
-## 🧪 7. Verification & Automated Benchmark Testing
+##  7. Verification & Automated Benchmark Testing
 
 The codebase includes an automated test harness validating both functional pipeline execution and core physical/behavioral dynamics:
 
@@ -169,16 +169,16 @@ python backend/test_backend.py
 
 ---
 
-## 📁 8. Project Documentation & Deliverables
+##  8. Project Documentation & Deliverables
 
-* 📖 **[ISRO User Manual & Operator Guide](file:///c:/SIH26/docs/USER_MANUAL.md)**
-* 📐 **[System Architecture & Mathematical Formulations](file:///c:/SIH26/docs/SYSTEM_ARCHITECTURE.md)**
-* 📊 **[SIH 2026 Technical Approach Slide (Markdown)](file:///c:/SIH26/docs/SIH_TECHNICAL_APPROACH_SLIDE.md)**
-* 🖥️ **[Interactive Technical Slide Presentation (HTML)](file:///c:/SIH26/docs/sih_technical_approach_slide.html)**
-* 📑 **[PowerPoint Presentation (.pptx)](file:///c:/SIH26/docs/SIH2026_Technical_Approach_ISRO_PS26169.pptx)**
-* 🎯 **[SIH 2026 Jury Presentation & Defense Guide](file:///c:/SIH26/docs/SIH_2026_JURY_QA_PREPARATION.md)**
-* 📋 **[Slide Deck Presentation Outline](file:///c:/SIH26/docs/SIH_PRESENTATION_OUTLINE.md)**
-* 🎬 **[Demonstration Video Script](file:///c:/SIH26/docs/VIDEO_DEMO_SCRIPT.md)**
+*  **[ISRO User Manual & Operator Guide](file:///c:/SIH26/docs/USER_MANUAL.md)**
+*  **[System Architecture & Mathematical Formulations](file:///c:/SIH26/docs/SYSTEM_ARCHITECTURE.md)**
+*  **[SIH 2026 Technical Approach Slide (Markdown)](file:///c:/SIH26/docs/SIH_TECHNICAL_APPROACH_SLIDE.md)**
+*  **[Interactive Technical Slide Presentation (HTML)](file:///c:/SIH26/docs/sih_technical_approach_slide.html)**
+*  **[PowerPoint Presentation (.pptx)](file:///c:/SIH26/docs/SIH2026_Technical_Approach_ISRO_PS26169.pptx)**
+*  **[SIH 2026 Jury Presentation & Defense Guide](file:///c:/SIH26/docs/SIH_2026_JURY_QA_PREPARATION.md)**
+*  **[Slide Deck Presentation Outline](file:///c:/SIH26/docs/SIH_PRESENTATION_OUTLINE.md)**
+*  **[Demonstration Video Script](file:///c:/SIH26/docs/VIDEO_DEMO_SCRIPT.md)**
 
 ---
 *Developed for Smart India Hackathon 2026 | Indian Space Research Organisation (ISRO)*
