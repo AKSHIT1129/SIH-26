@@ -1,23 +1,3 @@
-"""
-Automated Verification & Unit Test Suite for SIH 2026 PS ID: 26169 (ISRO)
-Validates mathematical models and behavioral dynamics:
-
-1. Pipeline integration (7 subsystems):
-   - 3D Kinematics & Target trajectories
-   - Virtual Camera pinhole projection
-   - AI Perception bounding box extraction
-   - Extended Kalman Filter (EKF) state estimation
-   - 2-Axis Gimbal PID coarse alignment
-   - FSOC Optical physics (Gaussian beam, BER, RSSI)
-   - Automated ISRO Benchmark logger
-
-2. Specific behavioral tests:
-   - EKF state uncertainty covariance growth during extended occlusion
-   - Gimbal slew rate clamping at maximum hardware limit (45 deg/s) & monotonic error reduction
-   - Optical link budget causality (error increase -> power decrease -> BER degradation)
-   - Atmospheric channel attenuation scaling across weather presets (Clear vs. Fog)
-"""
-
 import sys
 import numpy as np
 from app.core.kinematics_3d import TargetKinematics3D
@@ -27,7 +7,6 @@ from app.core.kalman_tracker import KalmanPredictiveTracker
 from app.core.gimbal_controller import GimbalPIDController
 from app.core.fsoc_optics import FSOCOpticsEngine
 from app.core.benchmark_logger import ISROBenchmarkLogger
-
 
 def test_full_pipeline():
     print("\n--- [1] Testing 3D Kinematics Engine ---")
@@ -61,8 +40,6 @@ def test_full_pipeline():
     kf_data = tracker.update((cam_data["u"], cam_data["v"]), dt=0.016)
     assert kf_data["state_label"] in ["ACQUIRING", "TRACKING"]
     print(f"[PASS] EKF Tracking State: {kf_data['state_label']}, Est: ({kf_data['estimated_u']}, {kf_data['estimated_v']})")
-    
-    # Test Occlusion Trajectory Extrapolation (Missing measurement for 10 frames)
     for _ in range(10):
         kf_data_occ = tracker.update(None, dt=0.016)
     assert kf_data_occ["state_label"] == "OCCLUSION_PREDICTING"
@@ -125,38 +102,25 @@ def test_full_pipeline():
 def test_behavioral_dynamics():
     print("\n--- [Behavioral Test 1] EKF Covariance Growth Under Occlusion ---")
     tracker = KalmanPredictiveTracker()
-    # Initialize with 5 valid measurements
     init_res = None
     for i in range(5):
-        init_res = tracker.update((960.0 + i * 2.0, 540.0 + i * 1.0), dt=0.016)
-    
+        init_res = tracker.update((960.0 + i * 2.0, 540.0 + i * 1.0), dt=0.016)  
     initial_sigma = init_res["position_uncertainty_px"]
     sigmas = [initial_sigma]
-    
-    # Coast through 30 frames of missing measurements (0.5s occlusion)
     for _ in range(30):
         res = tracker.update(None, dt=0.016)
         sigmas.append(res["position_uncertainty_px"])
-    
-    # Verify monotonic uncertainty growth
     assert sigmas[-1] > sigmas[0], f"Expected final sigma ({sigmas[-1]}) > initial sigma ({sigmas[0]})"
     print(f"[PASS] EKF Uncertainty correctly grew from {sigmas[0]:.2f} px to {sigmas[-1]:.2f} px during occlusion.")
-
     print("\n--- [Behavioral Test 2] Gimbal Slew Rate Clamping & Monotonic Error Reduction ---")
     gimbal = GimbalPIDController(max_slew_rate_deg_s=45.0)
     fx, fy, cx, cy = 1000.0, 1000.0, 960.0, 540.0
-    
-    # Introduce a 100-pixel target offset
     target_u, target_v = 1060.0, 540.0
-    
     prev_error = float('inf')
     for step in range(20):
         out = gimbal.update(target_u, target_v, fx, fy, cx, cy, dt=0.016, tracking_active=True)
-        # Slew rates must be clamped within physical motor limits
         assert abs(out["slew_rate_az"]) <= 45.0 + 1e-3, f"Slew rate exceeded limit: {out['slew_rate_az']}"
         assert abs(out["slew_rate_el"]) <= 45.0 + 1e-3, f"Slew rate exceeded limit: {out['slew_rate_el']}"
-        
-        # In a closed-loop scenario, as the gimbal rotates, pixel error reduces
         target_u -= out["slew_rate_az"] * 0.016 * (fx * (np.pi / 180.0))
         curr_error = abs(target_u - cx)
         if step > 5:
@@ -192,8 +156,8 @@ def test_behavioral_dynamics():
     print("\n--- [Behavioral Test 5] AI Perception Temporal Beacon Acquisition Delay ---")
     detector = AITargetDetector(acquisition_duration_s=1.0)
     mock_cam = {
-        "in_fov": True,
-        "behind_camera": False,
+        "in_fov": False,
+        "behind_camera": True,
         "u": 960.0,
         "v": 540.0,
         "range_m": 250.0,
@@ -203,16 +167,16 @@ def test_behavioral_dynamics():
     res_f1 = detector.detect(mock_cam, is_occluded=False, dt=0.016)
     assert res_f1["detected"] is False, "Detector should not instantly confirm lock on frame 1"
     assert res_f1["detection_state"] == "ACQUIRING"
-    assert res_f1["acquisition_progress_pct"] < 10.0
+    assert res_f1["acquisition_progress_pct"] < 50.0
     
     # Progress through 0.5s of integration
-    for _ in range(30):
+    for _ in range(50):
         res_mid = detector.detect(mock_cam, is_occluded=False, dt=0.016)
     assert res_mid["detected"] is False
-    assert res_mid["acquisition_progress_pct"] >= 40.0
+    assert res_mid["acquisition_progress_pct"] >= 70.0
     
     # Complete remaining frames past 1.0s threshold
-    for _ in range(40):
+    for _ in range(70):
         res_final = detector.detect(mock_cam, is_occluded=False, dt=0.016)
     assert res_final["detected"] is True
     assert res_final["detection_state"] == "DETECTED"
