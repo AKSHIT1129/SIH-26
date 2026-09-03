@@ -1,10 +1,4 @@
-"""
-Launcher for ISRO FSOC AI Virtual Camera Tracking Engine
-Runs FastAPI with Uvicorn server on port 8000.
-"""
-
 import uvicorn
-
 if __name__ == "__main__":
     print("=================================================================")
     print("  ISRO AI-BASED VIRTUAL CAMERA TRACKING ENGINE (PS ID: 26169)")
