@@ -180,4 +180,4 @@ python backend/test_backend.py
 *  **[Demonstration Video Script](file:///c:/SIH26/docs/VIDEO_DEMO_SCRIPT.md)**
 
 ---
-*Developed for Smart India Hackathon 2026 | Indian Space Research Organisation (ISRO)*
+*Developed whole by me for Smart India Hackathon 2026 | Indian Space Research Organisation (ISRO)*
